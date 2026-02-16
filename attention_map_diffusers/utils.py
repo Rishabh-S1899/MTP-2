@@ -211,7 +211,11 @@ def save_attention_image(attn_map, tokens, batch_dir, to_pil):
         to_pil(a.to(torch.float32)).save(os.path.join(batch_dir, f'{i}-{token}.png'))
 
 
-def save_attention_maps(attn_maps, tokenizer, prompts, base_dir='attn_maps', unconditional=True):
+def save_attention_maps(attn_maps, tokenizer, prompts, base_dir='attn_maps', unconditional=True, do_save_images=True):
+    if not do_save_images:
+        # If not saving images, just return, leaving attn_maps populated
+        return
+
     to_pil = ToPILImage()
     
     token_ids = tokenizer(prompts)['input_ids']
