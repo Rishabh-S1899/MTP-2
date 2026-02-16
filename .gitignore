@@ -11,3 +11,4 @@ demo/**.png
 
 build
 dist
+*.json

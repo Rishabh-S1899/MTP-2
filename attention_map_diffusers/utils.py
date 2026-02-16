@@ -1,5 +1,5 @@
 import os
-
+import json
 import torch
 import torch.nn.functional as F
 from torchvision.transforms import ToPILImage
@@ -16,11 +16,41 @@ from diffusers.models.attention_processor import (
 from .modules import *
 
 
+def load_cache_schedule(filepath: str):
+    """
+    Loads a cache schedule from a JSON file.
+    The JSON file should be a dictionary where keys are timesteps (str)
+    and values are dictionaries mapping layer names (str) to booleans.
+    """
+    with open(filepath, "r") as f:
+        schedule = json.load(f)
+    
+    # Clear the existing schedule
+    cache_schedule.clear()
+    
+    # Update with the new schedule
+    for k, v in schedule.items():
+        cache_schedule[k] = v
+
+
 def hook_function(name, detach=True):
     def forward_hook(module, input, output):
         if hasattr(module.processor, "attn_map"):
 
             timestep = module.processor.timestep
+            
+            # If a cache schedule is loaded, check if we need to cache
+            if cache_schedule:
+                timestep_str = str(timestep)
+                if timestep_str in cache_schedule:
+                    if not cache_schedule[timestep_str].get(name, False):
+                        # If the schedule for this layer is False, skip caching
+                        del module.processor.attn_map
+                        return
+                else:
+                    # If timestep is not in the schedule, skip caching
+                    del module.processor.attn_map
+                    return
 
             attn_maps[timestep] = attn_maps.get(timestep, dict())
             attn_maps[timestep][name] = module.processor.attn_map.cpu() if detach \
